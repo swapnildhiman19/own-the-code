@@ -14,6 +14,7 @@
 </p>
 
 <p align="center">
+  <a href="#why-this-exists"><b>Why</b></a> ·
   <a href="#quick-start"><b>Quick start</b></a> ·
   <a href="#how-it-works"><b>How it works</b></a> ·
   <a href="#what-you-get"><b>What you get</b></a> ·
@@ -30,13 +31,38 @@ claude plugin marketplace add swapnildhiman19/own-the-code && claude plugin inst
   <br><sub>Own in 7 moments, in a made-up shop app. It loops every 33 seconds.</sub>
 </p>
 
-You plan a feature with Claude, switch to Auto mode, and ten minutes later it works. A week later a teammate asks
-how checkout handles an expired coupon, and you have to ask Claude. It's your code, but you can't explain it.
+## Why this exists
 
-Own fixes that without slowing you down. While Claude builds, it keeps a private guide to each project: how the
-code runs, why it was built that way, and the new ideas you met. Then it makes sure the knowledge ends up in your
-head, not only in the guide: it walks you through the code stop by stop, asks short friendly quizzes, and brings
-back what you missed days later.
+Maybe this sounds familiar:
+
+1. **AI writes code faster than you can read it.** Every week there is a new model, a new tool, a new way to work.
+   Keeping up feels like a second job.
+2. **At first you review every change.** Then the changes get bigger, and you start skimming.
+3. **Then you stop reading.** Claude asks "Shall I go ahead?" and you press Enter. Enter. Enter. The tests pass,
+   the feature ships, and it feels productive.
+4. **A month later** a teammate asks how checkout handles an expired coupon, or it breaks at 2 a.m., and you can't
+   explain your own project without asking the AI first.
+5. **Each week the gap grows**, catching up feels pointless, and you quietly give up. You feel behind and replaceable,
+   even though you're shipping more than ever.
+
+That gap has a name: *comprehension debt*, code that exists but that nobody understands. It isn't a lack of
+talent or effort. It's what happens when code arrives faster than anyone can take it in, and nothing in the
+workflow gives your understanding a chance to keep up.
+
+The answer isn't to slow down or to stop using AI. It's to keep a small amount of **your own thinking** in the
+loop, at the few moments where it pays off most. That's what Own does:
+
+- **Claude keeps building at full speed.** Own keeps a private, plain-language guide to what was built and why,
+  so you never have to read every change to know your project.
+- **After a feature, two minutes are yours.** Walk through what changed, guess where the code goes next, explain it
+  back in your own words, or say Later.
+- **What you miss comes back** a few days later, until it sticks.
+- **Your progress is honest.** A flow counts as yours only when you can still answer a question about it on a later
+  day, not when you skimmed it once.
+
+You don't need to understand every line. In practice, people who own a codebase know its 4 or 5 main paths deeply
+and know where to look for the rest. Own builds exactly that, one walk at a time. You stay the person who can explain,
+debug and change the code, and that is what keeps you relevant when AI writes most of it.
 
 > Nothing is added to your repos. Building, pushing and deploying stay exactly as fast as before.
 
