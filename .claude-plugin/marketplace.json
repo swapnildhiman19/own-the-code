@@ -1,0 +1,14 @@
+{
+  "name": "own-the-code",
+  "description": "Marketplace for Own: a Claude Code plugin that keeps you the owner of the code Claude builds with you.",
+  "owner": {
+    "name": "swapnildhiman19"
+  },
+  "plugins": [
+    {
+      "name": "own",
+      "source": "./plugins/own",
+      "description": "Own the code: a private, plain-language guide to every project (how it runs, why it is built that way, new ideas met), walks through each flow stop by stop, and a short friendly quiz after each feature."
+    }
+  ]
+}

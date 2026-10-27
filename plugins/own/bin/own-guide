@@ -1,0 +1,10 @@
+#!/usr/bin/env -S python3 -I
+"""Launcher for own-guide. -I keeps Python from importing files from the current repo."""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib"))
+
+from own_guide.cli import main  # noqa: E402
+
+sys.exit(main())

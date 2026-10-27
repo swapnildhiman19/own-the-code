@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 100 100">
+  <title>Own the Code: a magnifying glass over lines of code</title>
+  <rect width="100" height="100" rx="22" fill="#1d3557"/>
+  <circle cx="44" cy="44" r="20" fill="none" stroke="#f1faee" stroke-width="7"/>
+  <line x1="61" y1="61" x2="78" y2="78" stroke="#f1faee" stroke-width="10" stroke-linecap="round"/>
+  <line x1="34" y1="38" x2="52" y2="38" stroke="#3ccf91" stroke-width="4" stroke-linecap="round"/>
+  <line x1="34" y1="45" x2="46" y2="45" stroke="#3ccf91" stroke-width="4" stroke-linecap="round"/>
+  <line x1="34" y1="52" x2="50" y2="52" stroke="#3ccf91" stroke-width="4" stroke-linecap="round"/>
+</svg>

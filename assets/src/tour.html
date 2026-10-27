@@ -1,0 +1,108 @@
+<!doctype html>
+<!--
+  Source of assets/own-in-7-moments.gif. Each moment is shown by its number in the URL hash (tour.html#3).
+  Regenerate: screenshot tour.html#1 ... #7 at 900x560 with headless Chrome, then join the PNGs with ffmpeg.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Own the Code in 7 moments</title>
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1f1f1c;--muted:#6b6a63;--line:#e4e2da;--accent:#2f5d9b;--accent-bg:#e6eefa;--navy:#1d3557;--green:#2f8a5b}
+*{box-sizing:border-box}
+body{margin:0;width:900px;height:560px;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;overflow:hidden}
+header{display:flex;align-items:center;justify-content:space-between;padding:22px 36px 0}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:17px}
+.brand svg{width:30px;height:30px}
+.step{font-size:14px;color:var(--muted)}
+.dots span{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--line);margin-left:6px}
+.dots span.on{background:var(--accent)}
+main{margin:16px 36px 0;background:#efede6;border-radius:16px;height:476px;padding:22px 28px;position:relative}
+.m{display:none}.m.on{display:block}
+h2{margin:0 0 14px;font-size:22px;font-weight:600}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:10px 0;max-width:640px}
+.chip{display:inline-block;font-size:12px;font-weight:600;padding:2px 9px;border-radius:7px;background:var(--accent-bg);color:var(--accent);margin-bottom:6px}
+.q{margin:0 0 8px;font-size:16px}
+.opt{border:1px solid var(--line);border-radius:8px;padding:6px 11px;margin:5px 0;font-size:15px}
+.me{display:inline-block;background:var(--accent-bg);color:var(--accent);border-radius:12px;padding:9px 14px;font-size:15px}
+.cl{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;font-size:15px;margin:8px 0;max-width:640px}
+.cap{position:absolute;left:28px;right:28px;bottom:20px;margin:0;font-size:16px;color:var(--muted)}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px}
+.route{font-size:14px;color:var(--muted)}.route b{color:var(--ink)}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{background:#f7f6f2;border-radius:8px;padding:8px 12px}.stat small{color:var(--muted);font-size:12px}.stat b{display:block;font-size:22px}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <svg viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="22" fill="#1d3557"/><circle cx="44" cy="44" r="20" fill="none" stroke="#f1faee" stroke-width="7"/><line x1="61" y1="61" x2="78" y2="78" stroke="#f1faee" stroke-width="10" stroke-linecap="round"/><line x1="34" y1="38" x2="52" y2="38" stroke="#3ccf91" stroke-width="4" stroke-linecap="round"/><line x1="34" y1="45" x2="46" y2="45" stroke="#3ccf91" stroke-width="4" stroke-linecap="round"/><line x1="34" y1="52" x2="50" y2="52" stroke="#3ccf91" stroke-width="4" stroke-linecap="round"/></svg>
+    Own the Code in 7 moments
+  </div>
+  <div><span class="step" id="step"></span><span class="dots" id="dots"></span></div>
+</header>
+<main>
+<section class="m" data-t="Install once">
+  <h2>Install once</h2>
+  <div class="card mono">$ claude plugin install own@own-the-code</div>
+  <p class="cap">One command. From then on Own runs by itself in every git project you open.</p>
+</section>
+<section class="m" data-t="First time in a project">
+  <h2>First time in a project</h2>
+  <div class="card"><span class="chip">Today</span>
+    <p class="q">This project has no guide yet. Build the first map now (~15 min)?</p>
+    <div class="opt">Build it now</div><div class="opt">Later</div><div class="opt">Never in this project</div></div>
+  <p class="cap">Claude reads the code and draws a map of its main parts and everything the app does, in your own folder, never in the project.</p>
+</section>
+<section class="m" data-t="You build as usual">
+  <h2>You build as usual</h2>
+  <div style="text-align:right;max-width:640px"><span class="me">Add coupon codes to checkout</span></div>
+  <div class="cl">Planning... building in Auto mode... tests pass.</div>
+  <p class="cap">Nothing interrupts you. Claude quietly notes every choice your plan didn't settle.</p>
+</section>
+<section class="m" data-t="Claude finishes">
+  <h2>Claude finishes</h2>
+  <div class="cl"><b>Your guide changed:</b> checkout page (steps 4-5 now cover the coupon check) · code decision #7 (why coupons are checked on the server)</div>
+  <div class="card"><span class="chip">Quiz</span>
+    <p class="q">Quiz on coupon codes: 3 questions, about 2 minutes.</p>
+    <div class="opt">Walk me through it first (~3 min)</div><div class="opt">Start</div><div class="opt">Later</div><div class="opt">Skip this one</div></div>
+  <p class="cap">Only after the work is done. Later and Skip are always there.</p>
+</section>
+<section class="m" data-t="A walk">
+  <h2>A walk through the code</h2>
+  <div class="route">1 Pay button → <b>[2 Coupon]</b> → 3 Payment → 4 Order</div>
+  <div class="card"><span class="chip">Predict</span>
+    <p class="q">Mia used the coupon SPRING10. What happens before her card is charged?</p>
+    <div class="opt">The order is saved</div><div class="opt">The cart is emptied</div><div class="opt">The coupon is checked and marked used</div></div>
+  <div class="cl">Your answer: the coupon is checked. That's right. <span class="mono">app/cart.py:52</span> runs before <span class="mono">app/payments.py:40</span>.</div>
+  <p class="cap">You guess where the code goes next, then see the line that proves it.</p>
+</section>
+<section class="m" data-t="Days later">
+  <h2>Days later</h2>
+  <div class="card"><span class="chip">Today</span>
+    <p class="q">2 waiting questions (~1 min)</p>
+    <div class="opt">Answer them</div><div class="opt">Walk one flow (~10 min)</div><div class="opt">Not today</div></div>
+  <p class="cap">What you missed comes back in new words after 1, 3, 7 and 21 days. At most once a day.</p>
+</section>
+<section class="m" data-t="Any time">
+  <h2>Any time: your guide on one page</h2>
+  <div class="cl mono">/own dashboard</div>
+  <div class="card"><b>shop: your guide</b>
+    <div class="grid" style="margin-top:10px">
+      <div class="stat"><small>Walked with you</small><b>1</b></div>
+      <div class="stat"><small>You've got</small><b>0</b></div>
+      <div class="stat"><small>Coming back</small><b>2</b></div>
+    </div>
+    <div style="font-size:13px;color:var(--muted);margin-top:10px">Changed since you last looked: checkout page</div></div>
+  <p class="cap">The map, every flow with its numbered picture, the decisions, and what changed.</p>
+</section>
+</main>
+<script>
+const ms = [...document.querySelectorAll('.m')];
+const i = Math.min(Math.max(parseInt(location.hash.slice(1) || '1', 10), 1), ms.length) - 1;
+ms[i].classList.add('on');
+document.getElementById('step').textContent = (i + 1) + ' of ' + ms.length + ' · ' + ms[i].dataset.t;
+document.getElementById('dots').innerHTML = ms.map((_, k) => '<span' + (k === i ? ' class="on"' : '') + '></span>').join('');
+</script>
+</body>
+</html>
