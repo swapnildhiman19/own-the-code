@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.3.0
+
+- **Show before you ask.** Own never asks you to guess about code you haven't been shown. "Where would you look
+  first?" now appears only for code you've walked and that hasn't changed since (`own-guide seen`). Otherwise
+  Claude fixes the bug first, then shows you what broke.
+- **Code walks.** One picture, shown in the chat and saved as `walks/<flow>.html` in your guide. It has numbered
+  arrows, and for each step what's on your screen, the real code with the key line highlighted, the real values,
+  and who calls whom to get there (calls, HTTP hops, threads woken). It appears when Claude starts a change (what
+  will change), when it finishes (Before / After, before any quiz), and after a bug fix (the step that broke).
+- **The first code edit waits, once.** Before Claude's first code edit of a piece of work, Own holds it back once
+  so the "about to change" picture comes first. Small fixes just go ahead.
+- **Your call, your line, find it yourself.** At a real fork, you make the call. You can write the 1-3 lines that
+  carry a change, with Claude's help until the tests pass. And you find one thing in your own editor. Every card
+  can be handed back to Claude, and `/own busy` hands them all back for the day.
+- **Progress counts what's yours:** calls you made, code you wrote, things you found. Calls Claude made for you
+  are listed on the guide page, to look at later.
+- One learning card at a time, and none right after you skip one or report a problem.
+
 ## 0.2.0
 
 - **Walks.** `/own walk <flow>`, the tour and a new "Walk me through it first" quiz option go through a flow stop

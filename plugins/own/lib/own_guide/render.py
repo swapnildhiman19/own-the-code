@@ -13,7 +13,7 @@ import html
 from typing import Any
 from urllib.parse import quote
 
-from . import guide, schedule, state, walks
+from . import guide, ownership, schedule, state, walks
 
 
 def _week_key(day: dt.date) -> str:
@@ -28,7 +28,16 @@ def summary(folder: str, st: dict[str, Any], today: dt.date) -> dict[str, Any]:
     flow_status = {page: walks.flow_status(page, st["walks"], questions) for page in c["flow_pages"]}
     quizzed_decisions = {q["source"] for q in questions if str(q.get("source", "")).startswith("decision:")}
     month_ago = (today - dt.timedelta(days=30)).isoformat()
+    events = st.get("ownership", [])
+    owned = ownership.counts(events)
     return {
+        "calls_you": owned["call_you"],
+        "lines_you": owned["line_you"],
+        "finds_you": owned["find_you"],
+        "handled_by_claude": owned["call_claude"] + owned["line_claude"],
+        # Decisions Claude made because the person was busy or chose "Claude decides": listed for a later look.
+        "claude_calls": [{"date": e["date"], "what": e["what"], "why": e.get("why", "")}
+                         for e in events if e.get("kind") == "call" and e.get("who") == "claude"][-20:],
         "flows_listed": c["flows_listed"],
         "flow_pages": len(c["flow_pages"]),
         "flows_walked": sum(1 for s in flow_status.values() if s != walks.NOT_WALKED),
@@ -57,6 +66,8 @@ def record_snapshot(st: dict[str, Any], numbers: dict[str, Any], today: dt.date)
         "ideas": numbers["ideas"],
         "decisions": numbers["decisions"],
         "got_it": numbers["got_it"],
+        "calls_you": numbers["calls_you"],
+        "lines_you": numbers["lines_you"],
     }
     log = [r for r in st["progress_log"] if r["date"] != row["date"]]
     log.append(row)
@@ -71,7 +82,8 @@ def weekly_delta(st: dict[str, Any], today: dt.date) -> dict[str, int] | None:
     older = [r for r in log if r["date"] <= week_ago]
     before = older[-1] if older else {}
     now = log[-1]
-    keys = ("flows_listed", "flow_pages", "flows_walked", "flows_got", "ideas", "decisions", "got_it")
+    keys = ("flows_listed", "flow_pages", "flows_walked", "flows_got", "ideas", "decisions", "got_it",
+            "calls_you", "lines_you")
     # A key the older row never recorded (rows saved before a metric existed) has no honest
     # "before", so its change is reported as 0 rather than as everything counted so far.
     return {k: (now.get(k, 0) - before.get(k, 0)) if (k in before or not older) else 0 for k in keys}
@@ -95,6 +107,10 @@ def weekly_line(project_name: str, st: dict[str, Any], today: dt.date) -> str | 
         parts.append(_plural(delta["flow_pages"], "flow page written", "flow pages written"))
     if delta["flows_walked"] > 0:
         parts.append(_plural(delta["flows_walked"], "flow walked with you", "flows walked with you"))
+    if delta["calls_you"] > 0:
+        parts.append(_plural(delta["calls_you"], "call you made", "calls you made"))
+    if delta["lines_you"] > 0:
+        parts.append(_plural(delta["lines_you"], "piece of code you wrote", "pieces of code you wrote"))
     if delta["ideas"] > 0:
         parts.append(_plural(delta["ideas"], "idea", "ideas"))
     if delta["got_it"] > 0:
@@ -108,9 +124,13 @@ def summary_text(project_name: str, n: dict[str, Any]) -> str:
         f"- Flows: {n['flow_pages']} of {n['flows_listed']} have pages, {n['flows_walked']} walked with you, "
         f"{n['flows_got']} you've got (walked, then answered right on a later day)",
         f"- Code decisions: {n['decisions']} written down, {n['decisions_quizzed']} you've been asked about",
+        f"- Yours: {n['calls_you']} calls you made, {n['lines_you']} pieces of code you wrote, "
+        f"{n['finds_you']} things you found yourself",
         f"- Ideas met: {n['ideas']}",
         f"- Questions: {n['got_it']} got for good, {n['coming_back']} coming back ({n['due_now']} due now)",
     ]
+    if n["claude_calls"]:
+        lines.append(f"- Calls Claude made for you (to look at later): {len(n['claude_calls'])}, listed on the guide page")
     if n["upcoming"]:
         lines.append("- Next returns: " + ", ".join(f"{u['date']}" for u in n["upcoming"]))
     lines.append(f"- Quizzes in the last 30 days: {n['quizzes_30d']}")
@@ -130,6 +150,9 @@ def progress_markdown(project_name: str, n: dict[str, Any], st: dict[str, Any], 
         f"| Flows walked with you | {n['flows_walked']} |",
         f"| Flows you've got (walked, then answered right on a later day) | {n['flows_got']} |",
         f"| Code decisions written down | {n['decisions']} ({n['decisions_quizzed']} asked about) |",
+        f"| Calls you made | {n['calls_you']} |",
+        f"| Pieces of code you wrote | {n['lines_you']} |",
+        f"| Things you found in the code yourself | {n['finds_you']} |",
         f"| Ideas met | {n['ideas']} |",
         f"| Questions got for good | {n['got_it']} |",
         f"| Questions coming back | {n['coming_back']} ({n['due_now']} due now) |",
@@ -140,6 +163,8 @@ def progress_markdown(project_name: str, n: dict[str, Any], st: dict[str, Any], 
         f"- Flows on the map: {delta.get('flows_listed', 0):+d}",
         f"- Flow pages written: {delta.get('flow_pages', 0):+d}",
         f"- Flows walked with you: {delta.get('flows_walked', 0):+d}",
+        f"- Calls you made: {delta.get('calls_you', 0):+d}",
+        f"- Pieces of code you wrote: {delta.get('lines_you', 0):+d}",
         f"- Ideas met: {delta.get('ideas', 0):+d}",
         f"- Questions got for good: {delta.get('got_it', 0):+d}",
         "",
@@ -211,6 +236,8 @@ def dashboard_html(projects: list[dict[str, Any]], today: dt.date) -> str:
             f'<div class="row"><span>Flows walked with you</span><span class="num">{n["flows_walked"]}</span></div>'
             f'<div class="row"><span>Flows you\'ve got</span><span class="num">{n["flows_got"]}</span></div>'
             f'<div class="row"><span>Code decisions</span><span class="num">{n["decisions"]}</span></div>'
+            f'<div class="row"><span>Calls you made / code you wrote</span>'
+            f'<span class="num">{n["calls_you"]} / {n["lines_you"]}</span></div>'
             f'<div class="row"><span>Ideas met</span><span class="num">{n["ideas"]}</span></div>'
             f'<div class="row"><span>Got for good</span><span class="num" style="color:var(--good)">{n["got_it"]}</span></div>'
             f'<div class="row"><span>Coming back</span><span class="num">{n["coming_back"]} ({n["due_now"]} due)</span></div>'

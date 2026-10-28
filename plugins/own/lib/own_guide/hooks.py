@@ -1,12 +1,14 @@
-"""The two automatic moments: a session starting, and Claude's turn ending.
+"""The three automatic moments: a session starting, Claude's first code edit, and Claude's turn ending.
 
 session_start() - hands Claude the short standing instructions plus today's facts for this
     project (or nothing at all when Own is switched off everywhere). It also records what
     the working copy looks like now, so later only *this session's* code changes count.
+edit_check()    - holds back Claude's first code edit of each piece of work, once, so the person
+    sees what is about to change before it changes (and gets their call and their line).
 stop_check()    - when a turn ends after enough code changed, tells Claude (once per set of
-    changes) to update the guide and offer the quiz. Otherwise stays silent.
+    changes) to update the guide, show what changed and offer the quiz. Otherwise stays silent.
 
-Both read the hook's JSON from stdin and must never break a session: every failure ends
+All read the hook's JSON from stdin and must never break a session: every failure ends
 in silence, not an error.
 """
 
@@ -17,26 +19,42 @@ import json
 from pathlib import Path
 from typing import Any
 
-from . import gitinfo, guide, identity, render, schedule, state
+from . import gitinfo, guide, identity, ownership, render, schedule, state
 
 RULES = """\
-{Person} asked for the following while Own is on. None of it may slow building, pushing or deploying.
-1. While building: when you make a choice the plan or {person} did not settle (a library or service, the shape \
+{Person} asked for the following while Own is on. None of it may slow building, pushing or deploying beyond \
+what they choose.
+1. Show before you ask: never ask {person} to predict, guess or answer anything about code they haven't been \
+shown in a picture or walk.
+2. While building: when you make a choice the plan or {person} did not settle (a library or service, the shape \
 of stored data, a tradeoff, permissions or security, something hard to undo, anything that differs from the plan), \
 add one plain line right away under "## Inbox" in {guide}/CODE-DECISIONS.md: what you chose and why. If the \
 choice changes the plan, ask them first instead.
-2. Plans you write end with "## After this ships, you'll be able to answer:" and 3 plain questions (how it runs, \
+3. Changing code: Own holds back your first code edit of each piece of work, once. Then, unless it's a small fix, \
+load the `own` skill and follow "Starting a change": show the "about to change" picture, ask "Your call" if the \
+change has a real fork, offer "Your line"; then make the edit again and keep building.
+4. Plans you write end with "## After this ships, you'll be able to answer:" and 3 plain questions (how it runs, \
 why it is built that way, where to look first if it breaks).
-3. When {person} reports a bug (not errors you hit yourself while building): before investigating, ask one \
-AskUserQuestion "Where would you look first?" with 3 real places in this code plus "Not sure, just fix it" \
-(skip it if they say it's urgent). After finding the cause, tell them how close their guess was.
-4. When {person} says "let me write this part": leave a 5-15 line gap with clear notes, then review what \
-{person} writes.
-5. When a message from Own says code changed: load the `own` skill and run its end-of-work routine (update the \
-guide, then offer the quiz card). Never ask quiz questions in the middle of building.
-6. Talk about all of this in plain words; never mention internal names (hooks, state files, stop checks).
-7. "/own off here" or "/own off": run `{tool} pause --here` or `{tool} pause` at once, then stop all of the above.
+5. When {person} reports a bug (not errors you hit yourself while building): if they say it's urgent, just fix it. \
+Otherwise run `{tool} seen <the 3 likeliest files>`. Only if it says "ask_guess": true, ask one AskUserQuestion \
+"Where would you look first?" with those 3 places plus "Not sure, just fix it", and after the fix say how close \
+the guess was. Otherwise don't ask: fix it, then show the code walk with the broken step marked (the `own` \
+skill's "Bug reported by them").
+6. When {person} says "let me write this part": run "Your line" from the `own` skill, with a 5-15 line gap.
+7. When a message from Own says code changed: load the `own` skill and run its end-of-work routine (update the \
+guide, show the Before/After code walk, then offer the quiz card). Never ask quiz questions in the middle of \
+building.
+8. After {person} skips or postpones a card, or reports a problem while answering one, show no other learning \
+card in that turn.
+9. Busy: when {person} says they're short on time or picks "Busy today", run `{tool} busy`. Until the day ends, \
+decide forks and write lines yourself without asking, and record each with `{tool} owned call|line ... --who \
+claude --why busy`. Pictures are still shown and saved.
+10. Talk about all of this in plain words; never mention internal names (hooks, state files, stop checks).
+11. "/own off here" or "/own off": run `{tool} pause --here` or `{tool} pause` at once, then stop all of the \
+above.
 """
+
+EDIT_TOOLS = ("Edit", "Write", "MultiEdit", "NotebookEdit")
 
 MAX_NAME, MAX_BACKGROUND = 60, 200
 
@@ -109,6 +127,7 @@ def project_status(cwd: str, entry: dict[str, Any], st: dict[str, Any], settings
         "card_due_today": card_due,
         "card_shown_today": shown_today,
         "paused": bool(st.get("paused")),
+        "busy_today": ownership.busy_today(settings, today),
         "level": st["level"],
     }
 
@@ -135,6 +154,9 @@ def _status_lines(status: dict[str, Any], stale: list[dict[str, Any]], tool: str
         lines.append(f"- A quiz was saved for later: \"{status['pending_quiz'].get('feature', '')}\".")
     if stale:
         lines.append(f"- Guide pages that may be out of date: {len(stale)} (`{tool} stale`).")
+    if status["busy_today"]:
+        lines.append("- Busy today: decide forks and write lines yourself, without the Your call / Your line / "
+                     "Find it yourself cards; record each one as Claude's. Pictures are still shown and saved.")
     if status["weekly_line"]:
         lines.append(f"- Weekly line for today's card: \"{status['weekly_line']}\"")
     if status["card_due_today"]:
@@ -203,6 +225,74 @@ def session_start(raw_stdin: str) -> str:
     return _hook_json("SessionStart", text)
 
 
+def _code_file(target: str, cwd: str, top: str, settings: dict[str, Any]) -> bool:
+    """Is this a file of the project's code (inside the repo, not ignored, not a guide)?"""
+    path = Path(target)
+    if not path.is_absolute():
+        path = Path(cwd) / path
+    path = path.resolve()
+    try:
+        rel = path.relative_to(Path(top)).as_posix()
+    except ValueError:
+        return False  # outside the repo: plans, memory, scratch files
+    guides = state.guides_root().expanduser().resolve()
+    if path == guides or guides in path.parents:
+        return False
+    if gitinfo.is_ignored(rel, settings["ignore"]):
+        return False
+    return gitinfo.git(["check-ignore", "-q", "--", rel], top).code != 0
+
+
+def edit_check(raw_stdin: str) -> str:
+    """Hold back Claude's first code edit of a piece of work, once, with a note only Claude sees.
+
+    Mia asks for a 24-hour grace period on expired coupons. Before Claude's first edit to
+    `shop/coupons.py` lands, Own stops it once: Claude first shows her what is about to change, asks her
+    call on the fork it found, offers her the line that carries the change, then makes the same edit
+    again. Every later edit goes through until the guide is updated (`synced`), which starts a new piece
+    of work. Silent for helper agents, plan mode, busy days, paused projects and non-code files.
+    """
+    payload = _read_payload(raw_stdin)
+    if payload.get("agent_id") or payload.get("permission_mode") == "plan":
+        return ""
+    if payload.get("tool_name") not in EDIT_TOOLS:
+        return ""
+    tool_input = payload.get("tool_input") if isinstance(payload.get("tool_input"), dict) else {}
+    target = tool_input.get("file_path") or tool_input.get("notebook_path")
+    if not isinstance(target, str) or not target.strip():
+        return ""
+    settings = state.load_settings()
+    today = state.today()
+    if not settings.get("enabled", True) or ownership.busy_today(settings, today):
+        return ""
+    cwd = payload.get("cwd") or "."
+    resolved = identity.resolve(cwd, create=False)
+    if resolved is None or resolved["status"] not in ("known", "new"):
+        return ""
+    top = resolved["info"]["toplevel"]
+    if not _code_file(target, cwd, top, settings):
+        return ""
+    with state.edit_state(resolved["entry"]["folder"]) as st:
+        if st.get("paused"):
+            return ""
+        if top not in st["worktrees"]:
+            _record_baseline(st, top, str(payload.get("session_id") or ""), cwd, today)
+        record = st["worktrees"][top]
+        if record.get("edit_gate"):
+            return ""
+        record["edit_gate"] = True
+    reason = (
+        f"Own held back this first code change of the current piece of work (only this once). Before making it: "
+        f"unless this is a small fix (one file, about 15 changed lines or fewer), load the `own` skill and follow "
+        f"\"Starting a change\": show {person(settings)} the \"about to change\" picture (the flow, the code walk "
+        "and who calls whom for the part you're changing, with the steps that will change marked), ask \"Your "
+        "call\" if the change has a real fork, and offer \"Your line\". Then make this same edit again and keep "
+        "building: Own won't hold back another edit until this work is wrapped up."
+    )
+    return json.dumps({"hookSpecificOutput": {
+        "hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": reason}})
+
+
 def stop_check(raw_stdin: str) -> str:
     payload = _read_payload(raw_stdin)
     if payload.get("stop_hook_active") or payload.get("permission_mode") == "plan":
@@ -228,6 +318,10 @@ def stop_check(raw_stdin: str) -> str:
         changes = gitinfo.compare(record.get("snap") or {}, current)
         ok, info = gitinfo.meaningful(changes, settings)
         if not ok:
+            # A small fix ended here: the next request is a new piece of work, so its first edit is held once.
+            # Not while the person is writing their line: the turn ended to wait for them, the work goes on.
+            if not record.get("line_pending"):
+                record["edit_gate"] = False
             return ""
         mark = gitinfo.fingerprint(changes, current)
         if mark in record.setdefault("handled", []):
@@ -237,11 +331,20 @@ def stop_check(raw_stdin: str) -> str:
     reason = (
         f"Own: this turn changed code ({info['files']} files, about {info['lines']} lines: {files}). "
         f"Before you finish, load the `own` skill and run its end-of-work routine: update the guide in "
-        f"{guide.guide_dir(entry['folder'])}/, show {person(settings)} what changed in it, then offer the quiz card "
+        f"{guide.guide_dir(entry['folder'])}/, show {person(settings)} the Before/After code walk of what changed "
+        "(flow, code walk and who calls whom), then offer the quiz card "
         "(Walk me through it first / Start / Later / Skip this one). "
         "Keep it short and don't redo any of the work."
     )
     return json.dumps({"decision": "block", "reason": reason})
+
+
+def mark_line_pending(cwd: str, folder: str, top: str, pending: bool) -> None:
+    """'Your line' was handed to the person (or came back): keep this piece of work open while they write it."""
+    with state.edit_state(folder) as st:
+        if top not in st["worktrees"]:
+            _record_baseline(st, top, "", cwd, state.today())
+        st["worktrees"][top]["line_pending"] = pending
 
 
 def mark_synced(cwd: str, folder: str, top: str) -> dict[str, Any]:
@@ -250,6 +353,7 @@ def mark_synced(cwd: str, folder: str, top: str) -> dict[str, Any]:
     base = gitinfo.head(cwd)
     with state.edit_state(folder) as st:
         record = st["worktrees"].setdefault(top, {"session_id": "", "handled": []})
-        record.update(base=base, snap=gitinfo.snapshot(cwd, base), handled=[])
+        # A new piece of work starts here, so its first code edit is held back once again (edit_check).
+        record.update(base=base, snap=gitinfo.snapshot(cwd, base), handled=[], edit_gate=False, line_pending=False)
         st["guide"].update(synced_at=today.isoformat(), synced_commit=base)
     return {"synced_commit": base, "synced_at": today.isoformat()}

@@ -2,6 +2,10 @@
 
 ## 1. The opener card
 
+Only after the user has seen the Before/After code walk of this work ([CODE-WALK.md](CODE-WALK.md)): never quiz
+code they haven't been shown (SKILL.md rule 10). Every question is about something in that picture or in a walk
+they did. Not after they skipped a card or reported a problem in this turn (SKILL.md rule 11).
+
 One AskUserQuestion, header "Quiz":
 - Question: `Quiz on <feature, in their words>: <N> questions, about <M> minutes.` (M ≈ N × 40 seconds, rounded up)
 - Options: **Walk me through it first (~3 min)** · **Start** · **Later** (saved; asked again on a later day in

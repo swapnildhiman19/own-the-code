@@ -14,8 +14,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from . import (__version__, diagrams, frontmatter, gitinfo, guide, hooks, identity, render, schedule, state, viewer,
-               walks)
+from . import (__version__, diagrams, frontmatter, gitinfo, guide, hooks, identity, ownership, render, schedule, state,
+               viewer, walkpage, walks)
 
 
 def _out(data: Any) -> int:
@@ -53,6 +53,16 @@ def cmd_session_start(_: argparse.Namespace) -> int:
 def cmd_stop_check(_: argparse.Namespace) -> int:
     try:
         text = hooks.stop_check(sys.stdin.read())
+    except Exception:
+        return 0
+    if text:
+        print(text)
+    return 0
+
+
+def cmd_edit_check(_: argparse.Namespace) -> int:
+    try:
+        text = hooks.edit_check(sys.stdin.read())
     except Exception:
         return 0
     if text:
@@ -103,6 +113,8 @@ def cmd_add_question(args: argparse.Namespace) -> int:
         st["next_question_id"] += 1
         if args.result:
             schedule.apply_result(question, args.result, today)
+        elif args.ask_tomorrow:
+            schedule.ask_later(question, today)
         st["questions"].append(question)
     return _out({"id": question["id"], "status": question["status"], "next_due": question["next_due"]})
 
@@ -344,6 +356,89 @@ def cmd_changes(args: argparse.Namespace) -> int:
     return _out(report)
 
 
+def cmd_seen(args: argparse.Namespace) -> int:
+    """Has the person been shown these files (on a walked flow page that is still up to date)?"""
+    entry, info = _project()
+    top = info["toplevel"]
+    base = guide.guide_dir(entry["folder"])
+    pages: dict[str, list[str]] = {}
+    flow_pages = sorted((base / "flows").glob("*.md")) if (base / "flows").is_dir() else []
+    for page in flow_pages:
+        listed = frontmatter.parse(page.read_text(encoding="utf-8")).get("files", [])
+        pages[page.stem] = [ownership.repo_path(f, top) for f in listed if isinstance(f, str) and f.strip()]
+    st = state.load_state(entry["folder"])
+    walked = {w.get("flow") for w in st["walks"] if w.get("flow")}
+    # A page checked against code this copy doesn't have has no list of changed files: all of it counts as old.
+    stale = {Path(s["page"]).stem: ({ownership.repo_path(f, top) for f in s["changed"]} if s["changed"] else None)
+             for s in gitinfo.stale_pages(".", base)}
+    files = [ownership.repo_path(f, top) for f in args.files]
+    result = ownership.seen_files(files, pages, walked, stale)
+    result["say"] = ("Fair to ask \"Where would you look first?\" with these places." if result["ask_guess"] else
+                     "Don't ask a guess: fix it first, then show the code walk with the broken step marked.")
+    return _out(result)
+
+
+def cmd_busy(args: argparse.Namespace) -> int:
+    """'Busy today': Claude handles the ownership cards by itself until the day ends (or --off)."""
+    today = state.today()
+    state.save_settings({"busy_day": "" if args.off else today.isoformat()})
+    busy = ownership.busy_today(state.load_settings(), today)
+    return _out({"busy_today": busy, "say": (
+        f"Busy until the end of {today.isoformat()}: decide forks and write lines yourself, and record each one."
+        if busy else "Not busy: the Your call / Your line / Find it yourself cards are back.")})
+
+
+def cmd_owned(args: argparse.Namespace) -> int:
+    """Record a call the person made, a line they wrote, or something they found - or Claude's, when skipped."""
+    entry, info = _project()
+    try:
+        event = ownership.new_event(args.kind, args.who, args.what, state.today().isoformat(), args.why or "",
+                                    args.file or "")
+    except ValueError as exc:
+        return _fail(str(exc))
+    with state.edit_state(entry["folder"]) as st:
+        st["ownership"].append(event)
+        totals = ownership.counts(st["ownership"])
+    if args.kind == "line":  # the line is written (by them or by Claude): the work is no longer waiting on it
+        hooks.mark_line_pending(".", entry["folder"], info["toplevel"], False)
+    return _out({"recorded": event, "totals": totals})
+
+
+def cmd_line_handed(_: argparse.Namespace) -> int:
+    """'Your line' is with the person now: while they write it, this piece of work stays open."""
+    entry, info = _project()
+    hooks.mark_line_pending(".", entry["folder"], info["toplevel"], True)
+    return _out({"line_pending": True, "say": "Wait for them. When the line is in and the tests pass, run "
+                                               "`owned line --who you ...`."})
+
+
+def cmd_walk_page(args: argparse.Namespace) -> int:
+    """Turn a walk's facts (JSON) into the picture for the chat and a page kept in the guide."""
+    entry, _info = _project()
+    try:
+        data = walkpage.validate(json.loads(Path(args.data).read_text(encoding="utf-8")))
+    except (OSError, json.JSONDecodeError) as exc:
+        return _fail(f"can't read the walk's JSON: {exc}")
+    except ValueError as exc:
+        return _fail(str(exc))
+    base = guide.guide_dir(entry["folder"])
+    if not (base / "flows" / f"{data['flow']}.md").is_file():
+        return _fail(f"no flow page flows/{data['flow']}.md: write the page first, then its walk")
+    walks_dir = base / "walks"
+    walks_dir.mkdir(parents=True, exist_ok=True)
+    page_path = walks_dir / f"{data['flow']}.html"
+    page_path.write_text(walkpage.page(data, entry["folder"]), encoding="utf-8")
+    (walks_dir / f"{data['flow']}.json").write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n",
+                                                    encoding="utf-8")
+    chat_dir = state.guides_root() / ".chat"
+    chat_dir.mkdir(parents=True, exist_ok=True)
+    chat_path = chat_dir / f"{entry['folder']}--{data['flow']}.html"
+    chat_path.write_text(walkpage.fragment(data), encoding="utf-8")
+    return _out({"page": str(page_path), "chat": str(chat_path), "steps": len(data["steps"]),
+                 "say": "Show the picture in chat: read the `chat` file and pass its whole text to the inline "
+                        "picture tool. If this session has none, open `page` in the browser and send the file."})
+
+
 def cmd_link(args: argparse.Namespace) -> int:
     try:
         return _out(identity.link(".", args.folder))
@@ -370,6 +465,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     add("session-start", cmd_session_start, "hook: print today's instructions and facts")
     add("stop-check", cmd_stop_check, "hook: ask for a guide update + quiz after enough code changed")
+    add("edit-check", cmd_edit_check, "hook: hold back the first code edit of a piece of work, once")
     add("identify", cmd_identify, "show how this folder is recognised")
     add("where", cmd_where, "print this project's guide folder")
     add("status", cmd_status, "today's facts for this project (JSON)")
@@ -383,7 +479,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--link", action="append", default=[], help="file:function to open (repeatable)")
     p.add_argument("--source", default="", help="flow:<page> | decision:<n> | idea:<name> | plan")
     p.add_argument("--feature", default="")
-    p.add_argument("--result", choices=list(schedule.RESULTS), default=None)
+    when = p.add_mutually_exclusive_group()
+    when.add_argument("--result", choices=list(schedule.RESULTS), default=None)
+    when.add_argument("--ask-tomorrow", action="store_true",
+                      help="not asked yet: ask it first tomorrow (e.g. after a bug Claude fixed and showed)")
     p = add("record", cmd_record, "record an answer to a returning question")
     p.add_argument("id")
     p.add_argument("result", choices=list(schedule.RESULTS))
@@ -428,6 +527,20 @@ def build_parser() -> argparse.ArgumentParser:
     p = add("changes", cmd_changes, "guide files new or changed since the last 'your guide changed' note")
     p.add_argument("--start", action="store_true", help="only remember this moment (run before updating the guide)")
     p.add_argument("--peek", action="store_true", help="list without remembering")
+    p = add("walk-page", cmd_walk_page, "draw a code walk (chat picture + a page in the guide's walks/ folder)")
+    p.add_argument("data", help="the walk's facts as a JSON file (shape: the own skill's CODE-WALK.md)")
+    p = add("seen", cmd_seen, "has the person been shown these files? (decides the 'where would you look' card)")
+    p.add_argument("files", nargs="+", help="repo files, e.g. shop/cart.py or shop/cart.py:42")
+    p = add("busy", cmd_busy, "busy today: Claude handles the ownership cards by itself until the day ends")
+    p.add_argument("--off", action="store_true", help="not busy any more")
+    p = add("owned", cmd_owned, "record a call made, a line written or something found")
+    p.add_argument("kind", choices=list(ownership.KINDS))
+    p.add_argument("--who", required=True, choices=list(ownership.WHO))
+    p.add_argument("--what", required=True, help="one plain line: the decision, the line, or what was found")
+    p.add_argument("--why", choices=[w for w in ownership.WHY if w], default=None,
+                   help="for --who claude: skipped (they chose 'Claude handles it') or busy")
+    p.add_argument("--file", default=None, help="the repo file it was in")
+    add("line-handed", cmd_line_handed, "'your line' was handed to the person: keep this piece of work open")
     p = add("link", cmd_link, "this repo is the same project as an existing guide")
     p.add_argument("folder")
     add("register-new", cmd_register_new, "this repo is a new project: give it its own guide")

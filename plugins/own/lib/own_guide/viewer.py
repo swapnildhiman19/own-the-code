@@ -38,7 +38,7 @@ def _sha(path: Path) -> str:
 def guide_files(base: Path) -> dict[str, str]:
     """A fingerprint of every file the person reads in the guide (generated files like PROGRESS.md left out)."""
     files = {name: _sha(base / name) for name in DOCS if (base / name).is_file()}
-    for sub, pattern in (("flows", "*.md"), ("diagrams", "*.png")):
+    for sub, pattern in (("flows", "*.md"), ("diagrams", "*.png"), ("walks", "*.html")):
         if (base / sub).is_dir():
             files.update({f"{sub}/{p.name}": _sha(p) for p in sorted((base / sub).glob(pattern))})
     return files
@@ -60,12 +60,23 @@ def page_of_picture(name: str) -> str | None:
     return f"flows/{match.group(2)}.md" if match.group(2) else "FLOW.md"
 
 
+def page_of(name: str) -> str | None:
+    """The page a guide file belongs to: a picture or a walk belongs to its flow page; a page to itself.
+
+    walks/checkout.html -> flows/checkout.md.
+    """
+    if name.startswith("diagrams/"):
+        return page_of_picture(name)
+    match = re.fullmatch(r"walks/(.+)\.html", name)
+    return f"flows/{match.group(1)}.md" if match else name
+
+
 def changed_pages(report: dict[str, Any]) -> set[str]:
-    """The pages to badge: changed pages, plus pages whose picture changed."""
+    """The pages to badge: changed pages, plus pages whose picture or walk changed."""
     pages = set()
     for item in report["changed"]:
         name = item["file"]
-        page = page_of_picture(name) if name.startswith("diagrams/") else name
+        page = page_of(name)
         if page and page.endswith(".md"):
             pages.add(page)
     return pages
@@ -370,13 +381,26 @@ def guide_html(project: str, base: Path, numbers: dict[str, Any], report: dict[s
         ("Walked with you", n["flows_walked"]), ("You've got", n["flows_got"]),
         ("Code decisions", n["decisions"]), ("Ideas met", n["ideas"]),
         ("Questions coming back", f"{n['coming_back']} ({n['due_now']} due now)"),
+        ("Calls you made", n["calls_you"]), ("Code you wrote", n["lines_you"]), ("Found yourself", n["finds_you"]),
     ]
     parts = [
         '<section class="box" id="progress"><h2>Where you are</h2><div class="grid">'
         + "".join(f'<div class="stat"><span class="muted">{e(k)}</span><b>{e(str(v))}</b></div>' for k, v in stats)
         + '</div><p class="muted">Walked: you went through the flow stop by stop with Claude. Got it: walked, then '
-          "answered a question on it right on a later day.</p></section>"
+          "answered a question on it right on a later day. Calls, code and finds: the decisions you made, the "
+          "pieces of code you wrote and the things you found in the code yourself.</p></section>"
     ]
+    if n.get("claude_calls"):
+        why = {"busy": "you were busy", "skipped": "you chose “Claude decides”"}
+        rows = "".join(
+            f"<li>{e(c['date'])}: {e(c['what'])}"
+            + (f' <span class="muted">({e(why[c["why"]])})</span>' if c.get("why") in why else "") + "</li>"
+            for c in reversed(n["claude_calls"])
+        )
+        parts.append('<section class="box" id="claude-calls"><h2>Calls Claude made for you</h2>'
+                     '<p class="muted">Decisions at a fork that Claude made alone. Worth a look when you have a minute; '
+                     "the reasons are in Code decisions.</p>"
+                     f"<ul>{rows}</ul></section>")
 
     if report["first_look"]:
         news = "<p>First look at this page. From now on, pages that change get a <b>Changed</b> badge.</p>"
@@ -384,10 +408,11 @@ def guide_html(project: str, base: Path, numbers: dict[str, Any], report: dict[s
         rows = []
         for item in report["changed"]:
             name = item["file"]
-            page = page_of_picture(name) if name.startswith("diagrams/") else name
+            page = page_of(name)
             doc = docs.get(Path(os.path.normpath(base / page))) if page else None
             what = "new" if item["kind"] == "new" else "changed"
-            label = f"{name} ({what}{', picture of ' + page if page and page != name else ''})"
+            kind = "step-by-step walk of " if name.startswith("walks/") else "picture of "
+            label = f"{name} ({what}{', ' + kind + page if page and page != name else ''})"
             rows.append(f'<li><a href="#{doc}">{e(label)}</a></li>' if doc else f"<li>{e(label)}</li>")
         rows += [f"<li>{e(name)} (removed)</li>" for name in report["removed"]]
         news = f"<ul>{''.join(rows)}</ul>"
@@ -404,7 +429,10 @@ def guide_html(project: str, base: Path, numbers: dict[str, Any], report: dict[s
         css, label = _CHIP[status.get(p.stem, walks.NOT_WALKED)]
         badge = changed_chip if f"flows/{p.name}" in badged else ""
         title = _title(p.read_text(encoding="utf-8"), p.stem)
-        listing.append(f'<li><span class="chip {css}">{label}</span>{badge}<a href="#flow-{slug(p.stem)}">{e(title)}</a></li>')
+        walk = (f' <a class="muted" href="walks/{e(quote(p.stem))}.html">step-by-step walk</a>'
+                if (base / "walks" / f"{p.stem}.html").is_file() else "")
+        listing.append(f'<li><span class="chip {css}">{label}</span>{badge}<a href="#flow-{slug(p.stem)}">{e(title)}</a>'
+                       f"{walk}</li>")
     parts.append(
         '<section class="box" id="flows"><h2>Flow pages</h2>'
         + (f'<ul class="flows">{"".join(listing)}</ul>' if listing else '<p class="muted">No flow pages written yet.</p>')

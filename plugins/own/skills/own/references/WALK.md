@@ -45,6 +45,9 @@ Show, in this order:
 - **What it does**: at most 3 bullets on what happens to the example here. At most 2 new terms per stop, each
   defined in brackets at first use. Use an analogy only when it is honest, and say where it stops; the user's
   `background` (Own's session note) says what they already know well.
+- **Values and calls**: one line with the example's values at this stop (`coupon = "SPRING10"`,
+  `row.expires = 2026-10-25`), and one line with how the code got here (`checkout() → apply_coupon()`, naming
+  any HTTP hop or thread wake-up). These are what make the code feel connected, not just described.
 
 Then, unless it was the last stop, one **prediction card** (AskUserQuestion, header "Predict"):
 
@@ -92,7 +95,9 @@ Then grade it, firmly:
 3. What's wrong or missing, numbered, each with the line that shows it. Wrong order and missing steps matter most:
    they are the flow.
 4. A full answer in at most 3 sentences.
-5. Now show the flow's picture (SKILL.md rule 6): "The whole trip on one picture, to compare with your version."
+5. Now show the whole flow as a code walk ([CODE-WALK.md](CODE-WALK.md)): every step with its screen, code,
+   values and calls, to compare with their version. It is saved as `walks/<flow>.html`, so they can open it
+   again any time.
 
 ## Record it
 
@@ -108,7 +113,8 @@ Then grade it, firmly:
      --source flow:checkout --feature "Walk: Checkout" --result miss
    ```
 
-3. Predictions are not stored as questions: they test the next stop, not memory.
+3. Predictions are not stored as questions: they test the next stop, not memory. If there's a good one, end
+   with one "Find it yourself" card ([OWNERSHIP.md](OWNERSHIP.md)): something they look up in their own editor.
 4. `python3 -I ~/code-guides/.bin/own-guide render` quietly. End with one line: "Walked. 2 gaps come back
    tomorrow; Checkout counts as yours once you answer right on a later day."
 

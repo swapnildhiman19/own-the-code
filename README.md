@@ -116,21 +116,23 @@ Your guides in `~/code-guides/` stay until you delete them.
 
 ## How it works
 
-Own is a skill (instructions Claude loads when needed), two small hooks (scripts Claude Code runs at fixed
+Own is a skill (instructions Claude loads when needed), three small hooks (scripts Claude Code runs at fixed
 moments) and a command-line tool, `own-guide`, that keeps the numbers, dates and file fingerprints exact.
 
 ```mermaid
 flowchart LR
     A[You open a project] -->|session-start hook| B[Claude gets a short note:<br>your guide, what's due today]
-    B --> C[You plan and build as usual]
-    C -->|a choice the plan didn't settle| D[One line in CODE-DECISIONS]
-    C --> E[Claude's turn ends]
-    E -->|end-of-turn hook: enough code changed?| F[Claude updates the guide<br>and shows you what changed]
+    B --> C[You plan as usual]
+    C -->|first-edit hook: held once| S[Claude shows what will change,<br>asks your call, offers your line]
+    S --> D[Claude builds]
+    D --> E[Claude's turn ends]
+    E -->|end-of-turn hook: enough code changed?| F[Claude updates the guide and shows<br>a Before / After code walk]
     F --> G[Quiz card: walk me through it,<br>start, later, or skip]
     G -->|your answers| H[Missed questions come back<br>after 1, 3, 7 and 21 days]
 ```
 
-The end-of-turn check fires once per set of changes, never in Plan mode, and never in the middle of building.
+The first-edit hold happens once per piece of work, and small fixes go straight through. The end-of-turn check
+fires once per set of changes, never in Plan mode, and never in the middle of building.
 
 ## What you get
 
@@ -141,9 +143,10 @@ The end-of-turn check fires once per set of changes, never in Plan mode, and nev
 | You open a project | Nothing, unless something is waiting. Then, after Claude finishes your first request, one card a day at most: waiting questions · walk one flow · not today. |
 | You open an existing project for the first time | "This project has no guide yet. Build the first map now (~15 min)?" |
 | You plan | Every plan ends with "After this ships, you'll be able to answer:" and 3 questions. |
+| Claude starts changing code | A code walk of the part it's about to change, with the steps that will change marked. At a real fork, **your call**. An offer to write **your line**, the 1-3 lines that carry the change. Every card can be handed back to Claude. |
 | Claude builds | Nothing new for you. Claude jots down every choice the plan didn't settle. |
-| A feature is done | Claude updates the guide, lists which pages changed, then offers: "Quiz on <feature>: 3 questions, ~2 min" [Walk me through it first / Start / Later / Skip]. |
-| You report a bug | "Where would you look first?" before Claude investigates, and afterwards how close you were. |
+| A feature is done | A Before / After code walk of what changed, then which guide pages changed, then: "Quiz on <feature>: 3 questions, ~2 min" [Walk me through it first / Start / Later / Skip]. |
+| You report a bug | In code you've walked: "Where would you look first?", and afterwards how close you were. In code you haven't seen: no guessing. Claude fixes it, then shows you the step that broke. |
 
 **When you ask:**
 
@@ -158,8 +161,35 @@ The end-of-turn check fires once per set of changes, never in Plan mode, and nev
 | `/own explain <flow>` | One flow's page, or a walk through it |
 | `/own progress` | Where you are, in five lines |
 | `/own profile` | Your name, and what you already know well |
+| `/own busy` | Short on time today: Claude makes the calls and writes the lines itself, and lists its calls for later |
 | `/own off here` · `/own off` | Pause in this project · everywhere (`on` undoes it) |
-| "let me write this part" | Claude leaves a 5-15 line gap for you, then reviews what you wrote |
+| "let me write this part" | Claude leaves a 5-15 line gap for you, helps until the tests pass, then reviews it |
+
+## A code walk, up close
+
+You can't own code you've never seen, and you can't guess where a bug is in it either. So before asking you
+anything, Own shows you. A code walk ties together, under one number per step, what's on your screen, the real
+code that runs, the real values passing through it, and who calls whom to get there. It's like stepping through
+with a debugger, with the variables panel open. Here's the step that changed when a shop gave expired coupons
+24 more hours, before and after:
+
+<p align="center">
+  <img src="assets/code-walk.png" width="900" alt="Step 3 of a code walk of a shop's checkout, before and after a change: the numbered flow, the coupon check's code with the key line highlighted, the values that decide it, and the call chain">
+</p>
+
+It appears in the chat, and it's saved in your guide as `walks/<flow>.html`, so you can open it again any time.
+
+**What makes it yours.** Watching isn't owning. People feel something is theirs when they know it closely, steer
+it, and put some of themselves into it. So each change also brings, at most once each:
+
+- **Your call**: at a real fork ("refuse an expired coupon, or give 24 more hours?"), Claude stops, recommends,
+  and you decide.
+- **Your line**: you write the 1-3 lines where the new behaviour lives, and Claude helps until the tests pass.
+- **Find it yourself**: one thing you look up in your own editor ("who calls `apply_coupon()`?").
+
+Each card has a "Claude handles it" answer, and `/own busy` hands them all to Claude for the day. Your progress
+counts the calls you made and the code you wrote. Calls Claude made for you are listed on your guide page, to look
+at later.
 
 ## A walk, up close
 
@@ -205,6 +235,7 @@ Behind that page is one private folder on your computer:
     ├── FLOW.md                    the whole-project map and the list of flows
     ├── flows/<flow>.md            one page per flow, with numbered steps
     ├── diagrams/                  pictures of the diagrams
+    ├── walks/<flow>.html          code walks: each step's screen, code, values and calls
     ├── CODE-DECISIONS.md          why the code is built this way
     ├── LEARNINGS.md               new ideas met in this project
     ├── guide.html                 generated: the whole guide as one page
@@ -218,8 +249,10 @@ re-cloned folder keeps its guide.
 ## FAQ
 
 **Does it slow Claude down?**
-No. Guide updates and quizzes happen after the work is done, and you can always say Later or Skip. Nothing runs
-during a build, a push or a deploy.
+A little, and only where it buys you understanding. When Claude starts a real change, the first edit waits once
+while Claude shows you what will change (a minute or two of Claude's work; small fixes skip it). Your call and your
+line wait for you only if you take them. Guide updates and quizzes happen after the work is done, and you can
+always say Later or Skip, or `/own busy` for a day. Nothing runs during a push or a deploy.
 
 **Does my code leave my computer?**
 Own itself sends nothing anywhere: it has no server. It reads your repo with `git` and writes only to
@@ -229,7 +262,7 @@ Own itself sends nothing anywhere: it has no server. It reads your repo with `gi
 Never. Your guides live in `~/code-guides/`, outside every repo.
 
 **What does it cost in tokens?**
-A short note at the start of each session in a git project, roughly 800 tokens. The skill's full instructions load
+A short note at the start of each session in a git project, roughly 1,100 tokens. The skill's full instructions load
 only when Own is actually used. Updating the guide after a feature takes a few minutes of Claude's work.
 
 **Why multiple choice?**

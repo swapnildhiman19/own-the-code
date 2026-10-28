@@ -29,6 +29,9 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     # well, for "like something you already know" comparisons. Empty = "you", no comparisons assumed.
     "name": "",
     "background": "",
+    # "Busy today" (`own-guide busy`): on this date Claude decides forks and writes lines itself,
+    # without the ownership cards. Any other value (or "") = not busy.
+    "busy_day": "",
     # A change counts as "a feature worth a quiz" when it is at least this big.
     "min_lines": 40,
     "min_files": 2,
@@ -78,6 +81,9 @@ DEFAULT_STATE: dict[str, Any] = {
     # What the guide files looked like when the person was last shown them: "note" for the
     # "your guide changed" note in chat, "viewer" for the guide page. None = never shown yet.
     "guide_seen": {"note": None, "viewer": None},
+    # Calls the person made, lines they wrote, things they found themselves - and the ones Claude
+    # handled for them (see ownership.py).
+    "ownership": [],
 }
 
 

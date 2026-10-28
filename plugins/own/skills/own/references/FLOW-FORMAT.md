@@ -74,8 +74,18 @@ one arrow per step below, in the same order; at most ~12.>
 
 ## Step by step
 1. `src/cart.js:40` `pay()`: the Pay button sends the cart to `POST /checkout`.
+   - On your screen: the cart shows 42.00, SPRING10 in the coupon box.
+   - Code: `const body = { items: cart.items, coupon: $('coupon').value };`
+   - Values: `coupon = "SPRING10"`
 2. `app/routes/checkout.py:12` `checkout()`: before it runs, FastAPI runs the sign-in check it asks for.
 3. ...
+
+## Who calls whom
+- Pay button `onclick` (`src/cart.html:31`) → `pay()` (`src/cart.js:40`) → HTTP `POST /checkout` →
+  `checkout()` (`app/routes/checkout.py:12`) → `apply_coupon()` (`app/cart.py:52`)
+- The nightly job `expire_coupons()` (`app/jobs.py:20`, its own timer) never calls checkout: it writes
+  `coupon.active`, which step 4 reads.
+- Walk with pictures: [walks/checkout.html](../walks/checkout.html) (made by `own-guide walk-page`)
 
 ## If it breaks, look here first
 - Everyone gets "not signed in" errors → step 2, the sign-in check.
@@ -114,7 +124,12 @@ Rules:
 - Mermaid ends a message at a `;`, so never put a semicolon in an arrow's text (use a comma or "then").
 - Each step names **file:line and the function**, so it still makes sense after lines move. Refresh the line
   numbers every time you touch the page, then run `stamp` again.
-- One plain sentence per step: what happens, in words a newcomer understands.
+- One plain sentence per step: what happens, in words a newcomer understands. Steps that changed recently, or
+  that are hard to follow, get the three sub-bullets of the code walk ([CODE-WALK.md](CODE-WALK.md)): what's on
+  your screen, the key code line, and the real values (examples marked "(example)").
+- "Who calls whom": the call chains from each entry point (a click, a route, a timer, a thread) to the functions
+  in the steps, with every HTTP hop and every thread wake-up named, and any value two chains meet at. Check each
+  link in the code.
 - "If it breaks": 2-3 symptom → step pairs. These feed debug questions.
 - "What if it grows?": 1-2 lines, from the real code (read it), about the first thing that breaks at 10x or
   100x (load, cost, data size, concurrency). Never generic advice.

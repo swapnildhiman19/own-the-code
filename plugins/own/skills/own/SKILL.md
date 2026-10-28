@@ -1,7 +1,7 @@
 ---
 name: own
-description: Own the code - keeps the user's private, plain-language guide to the current project in ~/code-guides (flow map, code decisions, learnings), walks them through flows stop by stop, and runs their short quizzes. Use when they type /own (quiz, walk, progress, dashboard, map, tour, explain, profile, off, on), when a message from Own says code changed (run the end-of-work routine), or when today's card is due.
-argument-hint: "[quiz | walk <flow> | progress | dashboard | map | tour | explain <flow> | profile | off [here] | on [here]]"
+description: Own the code - keeps the user's private, plain-language guide to the current project in ~/code-guides (flow map, code walks, code decisions, learnings), shows what code is about to change and what changed, lets them make the calls and write the key lines, walks them through flows stop by stop, and runs their short quizzes. Use when they type /own (quiz, walk, progress, dashboard, map, tour, explain, profile, busy, off, on), when Own holds back a first code edit ("Starting a change"), when a message from Own says code changed (run the end-of-work routine), when they report a bug, or when today's card is due.
+argument-hint: "[quiz | walk <flow> | progress | dashboard | map | tour | explain <flow> | profile | busy [off] | off [here] | on [here]]"
 ---
 
 # Own the code
@@ -22,8 +22,9 @@ run that one wherever an example below says `python3 -I ~/code-guides/.bin/own-g
 
 ## Rules that apply to every routine
 
-1. **Never slow delivery.** Nothing here may block building, pushing or deploying. Guide work happens after the
-   work is done, and is proportionate (a few minutes, not a rewrite).
+1. **Never slow delivery.** Nothing here may block building, pushing or deploying, except what the user chooses
+   (Your call, Your line). Guide work happens after the work is done, and is proportionate (a few minutes, not a
+   rewrite).
 2. **Plain language.** Everything the user sees starts with a concrete case, defines every term at first use, and
    uses short sentences. If they have a preferred style for explanations, follow it. Never mention internal names
    (hook, state file, stop check, fingerprint): say "your guide", "your quiz", "questions coming back".
@@ -45,6 +46,13 @@ run that one wherever an example below says `python3 -I ~/code-guides/.bin/own-g
    show me" is always last.
 9. **Show the user what changed in their guide.** They should never have to dig through `~/code-guides` to find
    out. Whenever a routine changes the guide, end with the changed-guide note (below).
+10. **Show before you ask.** Never ask the user to predict, guess or answer anything about code they haven't been
+    shown in a code walk ([CODE-WALK.md](references/CODE-WALK.md)) or a walk ([WALK.md](references/WALK.md)).
+    Code Claude just wrote counts as not shown until its picture has been shown.
+11. **One card at a time, and none right after a "no".** After the user skips or postpones a card, or reports a
+    problem while answering one, show no other learning card in that turn: they are in "fix it" mode.
+12. **Every ownership card can be handed back** ("Claude decides", "Claude writes it", "Just show me"), and
+    "busy today" skips them all ([OWNERSHIP.md](references/OWNERSHIP.md)).
 
 ## Start of every routine
 
@@ -70,9 +78,17 @@ If `where` says this repo "may be the same project as" another guide: ask once w
 | `/own tour` | Tour routine (same file): pick a flow, then walk it. |
 | `/own explain <flow>` | Write or fix the page if it is missing or stale, show its one-line summary, then one card: "Walk it with me (~10 min)" / "Just show me the page". The page: show its picture and send or link the file. |
 | `/own profile` | Two cards, one at a time: "What should I call you?" and "What do you already know well? (used for comparisons, e.g. iOS and Swift, or React)", each with "Skip" and the typed answer (Other). Then `python3 -I ~/code-guides/.bin/own-guide profile --name "<name>" --background "<background>"` (leave out a skipped one) and confirm in one line. |
+| `/own busy` / `/own busy off` | `python3 -I ~/code-guides/.bin/own-guide busy` / `... busy --off`. Confirm in one line: until the day ends, Claude makes the calls and writes the lines itself, still shows the pictures, and lists its calls on the guide page. |
 | `/own off here` / `/own on here` | `python3 -I ~/code-guides/.bin/own-guide pause --here` / `python3 -I ~/code-guides/.bin/own-guide resume --here`. Confirm in one line. |
 | `/own off` / `/own on` | `python3 -I ~/code-guides/.bin/own-guide pause` / `python3 -I ~/code-guides/.bin/own-guide resume`. Confirm in one line; say "off" takes full effect from the next session and that turning the plugin off in the plugins list removes it completely. |
-| "let me write this part" | Write-it-myself ([DEBUG-FIRST-AND-WRITE-IT.md](references/DEBUG-FIRST-AND-WRITE-IT.md)). |
+| "let me write this part" | Your line with a 5-15 line gap ([OWNERSHIP.md](references/OWNERSHIP.md)). |
+
+## Starting a change (when Own holds back your first code edit)
+
+Own holds back the first code edit of each piece of work, once. Follow [OWNERSHIP.md](references/OWNERSHIP.md),
+"Starting a change": a small fix → make the edit again and carry on. Otherwise, before building: the "about to
+change" code walk ([CODE-WALK.md](references/CODE-WALK.md), `moment: before`), then **Your call** if there's a
+real fork, then the **Your line** offer. Then make the edit again and build.
 
 ## End-of-work routine (when Own says code changed, or after `/own quiz` with new work)
 
@@ -94,9 +110,12 @@ If `where` says this repo "may be the same project as" another guide: ask once w
      LEARNINGS.md + the knowledge book entry (layers 2-4); framework page if a framework part was used.
 5. `python3 -I ~/code-guides/.bin/own-guide synced` - records the code exactly as it is now, committed or not, so
    only later changes count as new work.
-6. Show the changed-guide note (below).
+6. **Show what changed, first**: the Before/After code walk of this work ([CODE-WALK.md](references/CODE-WALK.md),
+   `moment: after`), with 2-3 plain lines under it. Then the changed-guide note (below). If there's a good one,
+   one "Find it yourself" card ([OWNERSHIP.md](references/OWNERSHIP.md)), unless busy today.
 7. Offer the quiz - [QUIZ-RULES.md](references/QUIZ-RULES.md). Start with the opener card; "Walk me through it
-   first" runs the short walk of what changed ([WALK.md](references/WALK.md)) before the questions.
+   first" runs the short walk of what changed ([WALK.md](references/WALK.md)) before the questions. Skip the
+   quiz card if the user skipped a card or reported a problem in this turn (rule 11).
 8. After the quiz (or Later / Skip): run the matching `python3 -I ~/code-guides/.bin/own-guide quiz-done | quiz-later | quiz-skip`, then
    `python3 -I ~/code-guides/.bin/own-guide render` quietly. End with one plain line, e.g. "Done. 1 question will come back on Thursday."
 
@@ -133,6 +152,19 @@ Put the `weekly_line` (if any) as the first sentence of the question text. Then 
 (add `--weekly` if the weekly line was shown). Follow their pick: returns → QUIZ "returns"; saved quiz →
 QUIZ on that feature; walk → tour routine (pick a flow, then walk it); "Not today" → one friendly line, nothing else.
 
-## A bug the user reports
+## Bug reported by them
 
-Debug-first card before investigating - see [DEBUG-FIRST-AND-WRITE-IT.md](references/DEBUG-FIRST-AND-WRITE-IT.md).
+Only for bugs the user reports, never for errors you hit yourself while building. Details:
+[DEBUG-FIRST-AND-WRITE-IT.md](references/DEBUG-FIRST-AND-WRITE-IT.md).
+
+1. Urgent ("demo in 5 minutes", "just fix it"), busy today, or reported while answering a card → fix it, then
+   step 4.
+2. Otherwise read just enough code to name the 3 likeliest places, then
+   `python3 -I ~/code-guides/.bin/own-guide seen <file> <file> <file>`.
+3. Only if it says `"ask_guess": true` (they walked that code and it hasn't changed since): the "Where would you
+   look first?" card. Otherwise **don't ask**: they'd be guessing about code they've never seen.
+4. Fix it. Then show the code walk of what broke ([CODE-WALK.md](references/CODE-WALK.md), `moment: bug`): the
+   broken step in red, the bad value visible, Before/After for the fix. If they guessed, say how close they were,
+   with `file:line`.
+5. Save one question about it for tomorrow (not now):
+   `python3 -I ~/code-guides/.bin/own-guide add-question --kind debug --tests "..." --answer "..." --source flow:<page> --ask-tomorrow`.

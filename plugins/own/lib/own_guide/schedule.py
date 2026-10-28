@@ -69,6 +69,16 @@ def apply_result(question: dict[str, Any], result: str, today: dt.date) -> dict[
     return question
 
 
+def ask_later(question: dict[str, Any], today: dt.date) -> dict[str, Any]:
+    """A question never asked yet, first asked tomorrow: e.g. about a bug Claude just fixed and showed.
+
+    Nothing goes into its history, because the person hasn't answered anything: it simply joins the 1-3-7-21
+    ladder at its first step.
+    """
+    question.update(status="learning", step=0, next_due=_iso(today + dt.timedelta(days=LADDER[0])))
+    return question
+
+
 def due(questions: list[dict[str, Any]], today: dt.date, limit: int) -> list[dict[str, Any]]:
     """Questions due now: oldest first, then the most-missed. At most `limit`."""
     waiting = [
