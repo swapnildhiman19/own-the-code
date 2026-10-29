@@ -43,18 +43,24 @@ never call each other but meet at one value (one writes it, the other reads it),
 | A bug fixed in code the user hadn't seen | `bug` | The step where it broke marked `broken`, the bad value visible, and `after` showing the fix. |
 | End of a walk ([WALK.md](WALK.md)) | `after` (or `before` if nothing changed) | The whole flow, to compare with their explain-back. |
 
-The picture never waits for a click. Show it, write 2-3 plain lines under it, and carry on. Under the
-picture say: what will change and why (before), what changed (after), or what broke and why (bug). Plain words;
-compare to what the user already knows (their `background`) and say where the comparison stops.
+The picture never waits for a click. Show it and carry on. What will change and why (before), what changed
+(after), or what broke and why (bug) goes **inside the picture**, in the `note` of the steps it concerns, and is
+repeated in 2-3 plain lines in **your last message of the turn**. Never only in text between tool calls: the
+desktop app shrinks that to one line (SKILL.md rule 13). Plain words; compare to what the user already knows
+(their `background`) and say where the comparison stops.
+
+**Their real code only** (SKILL.md rule 14): the example is a real thing from their project or this
+conversation ("you asked why <the screen> showed <what was wrong>", "your first edit to `<the real file>`"). The made-up shop
+below only shows the shape of the JSON.
 
 ## How to make it
 
 1. **Read the real code of every step now.** Copy the lines from the file; take `file:line` from the file as it
    is now. Never write code from memory.
 2. **Values.** Use real values when they are cheap to get: test output, a log line, the app's own API, the
-   database, a print while the tests run. Otherwise work them out from the code with one concrete example (a
-   person and an input: "Mia, coupon SPRING10, expired yesterday") and mark them: `"2026-10-25 (example)"`.
-   Never show a made-up value as if it were real.
+   database, a print while the tests run. Otherwise work them out from the code with one concrete example from
+   their project and mark them: `"0.0 (worked out from the code)"`. Never show a made-up value as if it were
+   real.
 3. **Calls.** For each step, the chain from the entry point (a click handler, a route, a timer, `main`) to this
    step's function: at most 8 frames, each `[function, "file:line", how]`, where `how` is how it reaches the
    *next* frame: `calls`, `runs`, `wakes`, `http`, `returns` (empty for the last frame). Check each link in the
@@ -69,7 +75,8 @@ compare to what the user already knows (their `background`) and say where the co
 
    It checks the facts (and says plainly what's wrong if anything is), saves the page in the guide as
    `walks/<flow>.html` (it opens in any browser, and the guide page links to it), and prints `chat`: a file
-   with the picture for the chat.
+   with the picture for the chat. Add `--step N` to open the chat picture at step N (a walk does this at each
+   stop).
 6. **Show it in chat:** read the `chat` file and pass its whole text, unchanged, to the inline picture tool (in
    the desktop app: the tool that shows widgets or visuals inline). Don't retype or edit it. If this session has
    no inline picture tool, `open` the `page` path and send the file.

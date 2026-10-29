@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.1
+
+- **Walk explanations are always visible.** The desktop app shrinks text written just before a card to one line,
+  so a walk could ask about an explanation you never saw. Each stop now shows the code walk opened at that stop
+  (`own-guide walk-page --step N`), and the question is about what the picture shows. Verdicts go inside the next
+  card.
+- **Your real code only.** Walks, pictures, pages and quizzes use your project and your conversation, never the
+  made-up examples from these docs.
+- No question about a step before it's shown.
+
 ## 0.3.0
 
 - **Show before you ask.** Own never asks you to guess about code you haven't been shown. "Where would you look

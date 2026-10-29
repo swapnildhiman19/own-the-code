@@ -53,6 +53,15 @@ run that one wherever an example below says `python3 -I ~/code-guides/.bin/own-g
     problem while answering one, show no other learning card in that turn: they are in "fix it" mode.
 12. **Every ownership card can be handed back** ("Claude decides", "Claude writes it", "Just show me"), and
     "busy today" skips them all ([OWNERSHIP.md](references/OWNERSHIP.md)).
+13. **What must be read goes where it is seen.** In the desktop app, text you write in the middle of a turn
+    (between tool calls, e.g. right before a card) is shrunk to a one-line summary; pictures and cards are shown
+    in full. So anything the user must read before answering goes **inside the picture** (the code walk) or
+    **inside the card's question**, or it is the **last message of your turn** and the card comes in a later
+    turn. Never put an explanation in mid-turn text and then ask about it.
+14. **Their real code, never made-up examples.** Every example in a walk, code walk, flow page, card or quiz for
+    the user comes from their real project or this conversation: a real file, a real function, a real thing they
+    asked for. The made-up shop (Mia, `shop/coupons.py`, SPRING10) in these reference pages only shows the
+    *format*; never copy it into their guide or chat.
 
 ## Start of every routine
 

@@ -163,7 +163,7 @@ _JS = """
 (function(){
 const W=__DATA__;const NS='http://www.w3.org/2000/svg';
 const hasAfter=W.steps.some(s=>s.after);
-let mode=W.moment==='after'&&hasAfter?'after':'before',step=0;
+let mode=W.moment==='after'&&hasAfter?'after':'before',step=Math.min(W.steps.length,Math.max(1,__START__))-1;
 const want=/step=(\\d+)/.exec(location.hash||''),wantMode=/mode=(before|after)/.exec(location.hash||'');
 if(want)step=Math.min(W.steps.length,Math.max(1,+want[1]))-1;
 if(wantMode&&hasAfter)mode=wantMode[1];
@@ -225,13 +225,19 @@ render();})();
 """
 
 
-def fragment(data: dict[str, Any]) -> str:
-    """The picture for the chat: style, body and script, no page around it."""
+def fragment(data: dict[str, Any], start: int = 1) -> str:
+    """The picture for the chat: style, body and script, no page around it, opened at step `start`.
+
+    A walk shows the same picture at each stop, opened at that stop's first arrow (`walk-page --step 3`).
+    """
     clean = validate(data)
+    if not isinstance(start, int) or not 1 <= start <= len(clean["steps"]):
+        raise ValueError(f"--step must be a step number from 1 to {len(clean['steps'])}")
     summary = html.escape(f"{clean['title']}: {len(clean['steps'])} numbered steps, each with the screen, the code, "
                           "the values and the calls.")
+    script = _JS.replace("__DATA__", _embed(clean)).replace("__START__", str(start))
     return (f"<style>{_CSS}</style>\n<h2 class=\"sr-only\" style=\"position:absolute;left:-9999px\">{summary}</h2>\n"
-            f"{_BODY}\n<script>{_JS.replace('__DATA__', _embed(clean))}</script>\n")
+            f"{_BODY}\n<script>{script}</script>\n")
 
 
 def page(data: dict[str, Any], project: str) -> str:

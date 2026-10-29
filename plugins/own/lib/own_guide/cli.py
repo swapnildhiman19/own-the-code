@@ -417,6 +417,7 @@ def cmd_walk_page(args: argparse.Namespace) -> int:
     entry, _info = _project()
     try:
         data = walkpage.validate(json.loads(Path(args.data).read_text(encoding="utf-8")))
+        chat = walkpage.fragment(data, args.step)
     except (OSError, json.JSONDecodeError) as exc:
         return _fail(f"can't read the walk's JSON: {exc}")
     except ValueError as exc:
@@ -433,7 +434,7 @@ def cmd_walk_page(args: argparse.Namespace) -> int:
     chat_dir = state.guides_root() / ".chat"
     chat_dir.mkdir(parents=True, exist_ok=True)
     chat_path = chat_dir / f"{entry['folder']}--{data['flow']}.html"
-    chat_path.write_text(walkpage.fragment(data), encoding="utf-8")
+    chat_path.write_text(chat, encoding="utf-8")
     return _out({"page": str(page_path), "chat": str(chat_path), "steps": len(data["steps"]),
                  "say": "Show the picture in chat: read the `chat` file and pass its whole text to the inline "
                         "picture tool. If this session has none, open `page` in the browser and send the file."})
@@ -529,6 +530,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--peek", action="store_true", help="list without remembering")
     p = add("walk-page", cmd_walk_page, "draw a code walk (chat picture + a page in the guide's walks/ folder)")
     p.add_argument("data", help="the walk's facts as a JSON file (shape: the own skill's CODE-WALK.md)")
+    p.add_argument("--step", type=int, default=1, help="open the chat picture at this step (a walk's current stop)")
     p = add("seen", cmd_seen, "has the person been shown these files? (decides the 'where would you look' card)")
     p.add_argument("files", nargs="+", help="repo files, e.g. shop/cart.py or shop/cart.py:42")
     p = add("busy", cmd_busy, "busy today: Claude handles the ownership cards by itself until the day ends")

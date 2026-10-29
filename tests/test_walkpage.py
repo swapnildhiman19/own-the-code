@@ -81,6 +81,13 @@ class ValidateTest(unittest.TestCase):
         self.assertNotIn("<!--", script.split("</script>")[0])
         self.assertIn("<\\!-- <script src=\\\"x\\\"><\\/script> -->", page)
 
+    def test_a_walk_can_open_the_chat_picture_at_its_current_stop(self) -> None:
+        self.assertIn("Math.max(1,2))-1", walkpage.fragment(WALK, 2))
+        self.assertIn("Math.max(1,1))-1", walkpage.fragment(WALK))
+        for bad in (0, 3, "2"):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                walkpage.fragment(WALK, bad)
+
     def test_the_chat_picture_is_a_fragment_and_the_page_is_whole(self) -> None:
         fragment = walkpage.fragment(WALK)
         self.assertFalse(fragment.lstrip().lower().startswith("<!doctype"))
