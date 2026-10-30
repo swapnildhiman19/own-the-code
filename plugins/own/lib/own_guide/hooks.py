@@ -55,6 +55,8 @@ above.
 """
 
 EDIT_TOOLS = ("Edit", "Write", "MultiEdit", "NotebookEdit")
+# lean-ctx's edit tool, under whatever name its server has: mcp__lean-ctx__ctx_patch, mcp__plugin_..._ctx_patch.
+PATCH_TOOL_SUFFIX = "__ctx_patch"
 
 MAX_NAME, MAX_BACKGROUND = 60, 200
 
@@ -243,6 +245,25 @@ def _code_file(target: str, cwd: str, top: str, settings: dict[str, Any]) -> boo
     return gitinfo.git(["check-ignore", "-q", "--", rel], top).code != 0
 
 
+def _edit_targets(tool_name: object, tool_input: dict[str, Any]) -> list[str]:
+    """The files an edit is about to change.
+
+    Claude's own tools name one file. lean-ctx's ctx_patch names one `path`, or a batch of `ops` (each with its
+    own `path`), as in `ops=[{"path": "README.md", ...}, {"path": "shop/cart.py", ...}]`. A dry run changes
+    nothing on disk, so it names none.
+    """
+    if tool_name in EDIT_TOOLS:
+        found = [tool_input.get("file_path") or tool_input.get("notebook_path")]
+    elif isinstance(tool_name, str) and tool_name.startswith("mcp__") and tool_name.endswith(PATCH_TOOL_SUFFIX):
+        if tool_input.get("dry_run"):
+            return []
+        ops = tool_input.get("ops") if isinstance(tool_input.get("ops"), list) else []
+        found = [tool_input.get("path")] + [op.get("path") for op in ops if isinstance(op, dict)]
+    else:
+        return []
+    return [t for t in found if isinstance(t, str) and t.strip()]
+
+
 def edit_check(raw_stdin: str) -> str:
     """Hold back Claude's first code edit of a piece of work, once, with a note only Claude sees.
 
@@ -255,11 +276,9 @@ def edit_check(raw_stdin: str) -> str:
     payload = _read_payload(raw_stdin)
     if payload.get("agent_id") or payload.get("permission_mode") == "plan":
         return ""
-    if payload.get("tool_name") not in EDIT_TOOLS:
-        return ""
     tool_input = payload.get("tool_input") if isinstance(payload.get("tool_input"), dict) else {}
-    target = tool_input.get("file_path") or tool_input.get("notebook_path")
-    if not isinstance(target, str) or not target.strip():
+    targets = _edit_targets(payload.get("tool_name"), tool_input)
+    if not targets:
         return ""
     settings = state.load_settings()
     today = state.today()
@@ -270,7 +289,7 @@ def edit_check(raw_stdin: str) -> str:
     if resolved is None or resolved["status"] not in ("known", "new"):
         return ""
     top = resolved["info"]["toplevel"]
-    if not _code_file(target, cwd, top, settings):
+    if not any(_code_file(target, cwd, top, settings) for target in targets):
         return ""
     with state.edit_state(resolved["entry"]["folder"]) as st:
         if st.get("paused"):

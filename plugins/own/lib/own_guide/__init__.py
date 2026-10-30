@@ -5,4 +5,4 @@ question comes back, what changed since the guide was last updated - so none of 
 depends on Claude remembering. Standard library only.
 """
 
-__version__ = "0.3.1"
+__version__ = "0.3.2"

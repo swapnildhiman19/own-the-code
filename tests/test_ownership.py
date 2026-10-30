@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import re
 import unittest
 
 from support import ROOT, GuideTestCase
@@ -92,6 +93,25 @@ class EditCheckTest(GuideTestCase):
         return hooks.edit_check(self.payload(self.repo, tool_name="Edit", hook_event_name="PreToolUse",
                                              tool_input={"file_path": target}, **extra))
 
+    def patch(self, tool_name: str = "mcp__lean-ctx__ctx_patch", **tool_input: object) -> str:
+        return hooks.edit_check(self.payload(self.repo, tool_name=tool_name, hook_event_name="PreToolUse",
+                                             tool_input=tool_input))
+
+    def test_lean_ctx_patches_are_held_too(self) -> None:
+        self.assertIn("deny", self.patch(path="shop/cart.py", op="replace_unique"))  # relative to cwd
+        self.assertEqual(self.edit("shop/cart.py"), "")  # one hold per piece of work, whichever tool
+
+    def test_a_lean_ctx_batch_is_held_when_any_of_its_files_is_code(self) -> None:
+        self.assertEqual(self.patch(ops=[{"op": "replace_unique", "path": "README.md"}, "not an op"]), "")
+        both = [{"op": "replace_unique", "path": "README.md"},
+                {"op": "replace_unique", "path": str(self.repo / "shop/cart.py")}]
+        self.assertIn("deny", self.patch(ops=both))
+
+    def test_lean_ctx_under_another_server_name_its_reads_and_dry_runs(self) -> None:
+        self.assertEqual(self.patch(path="shop/cart.py", dry_run=True), "")  # changes nothing on disk
+        self.assertEqual(self.patch("mcp__lean-ctx__ctx_read", path="shop/cart.py"), "")
+        self.assertIn("deny", self.patch("mcp__plugin_lean-ctx_lean-ctx__ctx_patch", path="shop/cart.py"))
+
     def test_the_first_code_edit_is_held_once_then_edits_flow(self) -> None:
         out = json.loads(self.edit("shop/cart.py"))["hookSpecificOutput"]
         self.assertEqual((out["hookEventName"], out["permissionDecision"]), ("PreToolUse", "deny"))
@@ -150,7 +170,12 @@ class EditCheckTest(GuideTestCase):
     def test_the_plugin_runs_the_check_before_file_edits(self) -> None:
         config = json.loads((ROOT / "plugins/own/hooks/hooks.json").read_text(encoding="utf-8"))
         entry = config["hooks"]["PreToolUse"][0]
-        self.assertEqual(set(entry["matcher"].split("|")), set(hooks.EDIT_TOOLS))
+        for name in (*hooks.EDIT_TOOLS, "mcp__lean-ctx__ctx_patch", "mcp__plugin_lean-ctx_lean-ctx__ctx_patch"):
+            with self.subTest(tool=name):
+                self.assertTrue(re.fullmatch(entry["matcher"], name))
+        for name in ("Read", "Bash", "mcp__lean-ctx__ctx_read", "mcp__lean-ctx__ctx_shell"):
+            with self.subTest(tool=name):
+                self.assertIsNone(re.search(entry["matcher"], name))
         self.assertTrue(entry["hooks"][0]["command"].endswith("edit-check"))
 
     def test_the_cli_hook_prints_the_hold_and_never_fails(self) -> None:

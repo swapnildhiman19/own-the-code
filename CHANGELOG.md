@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.2
+
+- **The first-edit hold also catches edits made through lean-ctx.** If you use the lean-ctx plugin, Claude
+  often changes code with its `ctx_patch` tool instead of the Edit tool, so the hold never fired and the "about to
+  change" picture never came. Own now watches `ctx_patch` too, under any server name, including batches that
+  change several files (held if any one of them is code). A dry run changes nothing, so it isn't held.
+- Changes made through shell commands (like `sed`) still aren't held, because Own can't tell in advance which
+  files a command will change. The end-of-work guide update still sees them, because it reads git.
+
 ## 0.3.1
 
 - **Walk explanations are always visible.** The desktop app shrinks text written just before a card to one line,

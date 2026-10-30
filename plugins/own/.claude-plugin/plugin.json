@@ -1,6 +1,6 @@
 {
   "name": "own",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Own the code: keeps a private, plain-language guide to every project in ~/code-guides (flow map, code decisions, learnings), walks you through each flow stop by stop, and asks a short friendly quiz after each feature, with missed questions coming back days later.",
   "author": {
     "name": "swapnildhiman19"
